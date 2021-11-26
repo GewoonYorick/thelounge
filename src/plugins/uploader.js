@@ -72,7 +72,7 @@ class Uploader {
 	}
 
 	static router(express) {
-		express.get("/uploads/:name/:slug*?", Uploader.routeGetFile);
+		express.get("/uploads/:name/:slug?/:raw?", Uploader.routeGetFile);
 		express.post("/uploads/new/:token", Uploader.routeUploadFile);
 	}
 
@@ -109,6 +109,34 @@ class Uploader {
 				fallback: false,
 				type: disposition,
 			});
+		}
+
+		// For text uploads use a nice preview instead of sending it raw, unless a raw version is requested.
+		if (req.params.raw !== "raw" && detectedMimeType === "text/plain") {
+			fs.readFile(filePath, "UTF-8", (err, data) => {
+				// Needs better error handling
+				if (err) {
+					throw err;
+				}
+
+				// This should be done differently too, depending on how we want to generate the html.
+				const content = data.replace("\n", "<br>");
+				const html = `
+				<html>
+					<head>
+						<title>The Lounge Fancy Uploads Prototype</title>
+						<meta name="description" content="${data}">
+					</head>
+
+					<body>
+						<p>${content}</p>
+					</body>
+				</html>
+				`;
+				res.setHeader("Content-Type", "text/html");
+				res.send(html);
+			});
+			return;
 		}
 
 		// Send a more common mime type for audio files
